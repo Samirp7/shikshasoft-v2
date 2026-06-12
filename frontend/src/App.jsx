@@ -13,15 +13,36 @@ import { Notices, Settings } from './pages/NoticesSettings';
 import './index.css';
 
 function PrivateRoute({ children }) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  
+  // 1. Wait for Supabase to finish checking before doing anything!
+  if (loading) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-gray-50">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
+      </div>
+    );
+  }
+  
+  // 2. Once loading is done, evaluate if they are authenticated
   return user ? children : <Navigate to="/login" replace />;
 }
 
 function AppRoutes() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+
+  // Wait for Supabase here too so the login route doesn't glitch jump
+  if (loading) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-gray-50">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
+      </div>
+    );
+  }
+
   return (
     <Routes>
-      <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
+      <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
       <Route path="/" element={<PrivateRoute><Layout><Dashboard /></Layout></PrivateRoute>} />
       <Route path="/students" element={<PrivateRoute><Layout><Students /></Layout></PrivateRoute>} />
       <Route path="/classes" element={<PrivateRoute><Layout><Classes /></Layout></PrivateRoute>} />
@@ -30,7 +51,7 @@ function AppRoutes() {
       <Route path="/fees" element={<PrivateRoute><Layout><Fees /></Layout></PrivateRoute>} />
       <Route path="/notices" element={<PrivateRoute><Layout><Notices /></Layout></PrivateRoute>} />
       <Route path="/settings" element={<PrivateRoute><Layout><Settings /></Layout></PrivateRoute>} />
-      <Route path="*" element={<Navigate to="/" />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
