@@ -1,19 +1,25 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { createClient } from '@supabase/supabase-js';
 
-const AuthContext = createContext();
+// Initialize Supabase Client using environment variables
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export function AuthProvider({ children }) {
+const AuthContext = createContext({});
+
+export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Check for an active session whenever the app loads
   useEffect(() => {
+    // Check active sessions on page load
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
+    // Listen for auth state changes (login, logout, etc.)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       setLoading(false);
@@ -22,29 +28,20 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Updated Login using Supabase Auth
+  // Login Function
   const login = async (email, password) => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) throw error;
-
-      return { success: true };
-    } catch (err) {
-      return { success: false, message: err.message || 'Login failed.' };
-    } finally {
-      setLoading(false);
-    }
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) throw error;
+    return data;
   };
 
-  // Updated Logout using Supabase Auth
+  // Logout Function
   const logout = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
   };
 
   return (
@@ -52,6 +49,6 @@ export function AuthProvider({ children }) {
       {!loading && children}
     </AuthContext.Provider>
   );
-}
+};
 
 export const useAuth = () => useContext(AuthContext);
