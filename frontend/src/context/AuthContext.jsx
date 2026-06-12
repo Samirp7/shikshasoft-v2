@@ -1,39 +1,55 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import api from '../utils/api';
+import { supabase } from '../supabaseClient';
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    const u = localStorage.getItem('ss_user');
-    return u ? JSON.parse(u) : null;
-  });
-  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
+  // Check for an active session whenever the app loads
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Updated Login using Supabase Auth
   const login = async (email, password) => {
     setLoading(true);
     try {
-      const { data } = await api.post('/auth/login', { email, password });
-      localStorage.setItem('ss_token', data.token);
-      localStorage.setItem('ss_user', JSON.stringify(data.user));
-      setUser(data.user);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
       return { success: true };
     } catch (err) {
-      return { success: false, message: err.response?.data?.message || 'Login failed.' };
+      return { success: false, message: err.message || 'Login failed.' };
     } finally {
       setLoading(false);
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('ss_token');
-    localStorage.removeItem('ss_user');
+  // Updated Logout using Supabase Auth
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
   };
 
   return (
     <AuthContext.Provider value={{ user, login, logout, loading }}>
-      {children}
+      {!loading && children}
     </AuthContext.Provider>
   );
 }
