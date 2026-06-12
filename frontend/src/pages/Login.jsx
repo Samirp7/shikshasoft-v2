@@ -10,12 +10,16 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const result = await login(form.email, form.password);
-    if (result.success) {
+    try {
+      // 1. Call login and wait for the raw Supabase response
+      await login(form.email, form.password);
+      
+      // 2. If no error was thrown, it was successful!
       toast.success('Welcome back!');
-      navigate('/');
-    } else {
-      toast.error(result.message);
+      navigate('/', { replace: true });
+    } catch (error) {
+      // 3. Catch and display the exact error message from Supabase
+      toast.error(error.message || 'Invalid login credentials');
     }
   };
 
