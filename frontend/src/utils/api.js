@@ -1,6 +1,5 @@
 import axios from 'axios';
 
-// Create the axios instance pointing to your backend API
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
   headers: {
@@ -8,10 +7,9 @@ const api = axios.create({
   },
 });
 
-// REQUEST INTERCEPTOR: Automatically injects the Supabase JWT token into every request
+// Automatic token injection
 api.interceptors.request.use(
   (config) => {
-    // 1. Find the local storage key Supabase uses to track your session
     const supabaseKey = Object.keys(localStorage).find((key) =>
       key.startsWith('sb-') && key.endsWith('-auth-token')
     );
@@ -20,13 +18,11 @@ api.interceptors.request.use(
       try {
         const sessionData = JSON.parse(localStorage.getItem(supabaseKey));
         const token = sessionData?.access_token;
-        
-        // 2. Inject the live token into the Authorization Header
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
       } catch (error) {
-        console.error('Error parsing Supabase session token:', error);
+        console.error('Token parse error:', error);
       }
     }
     return config;
@@ -36,16 +32,14 @@ api.interceptors.request.use(
   }
 );
 
-// RESPONSE INTERCEPTOR: Handles errors safely WITHOUT forcing a blind window.location redirect
+// Safe response interceptor without the loop trigger
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    return response;
+  },
   (error) => {
-    // If the server rejects the request with a 401 Unauthorized error
     if (error.response && error.response.status === 401) {
-      console.warn('API returned 401 Unauthorized. Session may be expired.');
-      
-      // DO NOT use window.location.href = '/login' here!
-      // React Router guards in App.jsx will handle navigation gracefully if the session drops.
+      console.warn('Unauthorized request - handoff to App routing handles this.');
     }
     return Promise.reject(error);
   }
