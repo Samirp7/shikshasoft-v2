@@ -2,47 +2,23 @@ import axios from 'axios';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: { 'Content-Type': 'application/json' }
 });
 
-// Automatic token injection
-api.interceptors.request.use(
-  (config) => {
-    const supabaseKey = Object.keys(localStorage).find((key) =>
-      key.startsWith('sb-') && key.endsWith('-auth-token')
-    );
-
-    if (supabaseKey) {
-      try {
-        const sessionData = JSON.parse(localStorage.getItem(supabaseKey));
-        const token = sessionData?.access_token;
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-      } catch (error) {
-        console.error('Token parse error:', error);
-      }
+api.interceptors.request.use((config) => {
+  const sbKey = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+  if (sbKey) {
+    const session = JSON.parse(localStorage.getItem(sbKey));
+    if (session?.access_token) {
+      config.headers.Authorization = `Bearer ${session.access_token}`;
     }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
   }
-);
+  return config;
+});
 
-// Safe response interceptor without the loop trigger
 api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  (error) => {
-    if (error.response && error.response.status === 401) {
-      console.warn('Unauthorized request - handoff to App routing handles this.');
-    }
-    return Promise.reject(error);
-  }
+  res => res,
+  err => Promise.reject(err)
 );
 
 export default api;
